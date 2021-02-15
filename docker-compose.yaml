@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+ 
+  # RabbitMQ - queue
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"  
+      - "15672:15672"  # here, we can access rabbitmq management plugin
+     
+  
+  # Django web server - celery master
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: web
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  
+    ports:
+      - "8000:8000"
+    links:
+      - rabbit
+  
+  # Celery worker
+  worker:
+    environment: 
+      - C_FORCE_ROOT= true
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A tntproject worker -l info
+    volumes:
+      - .:/app
+    ports: []
+    links:
+      - rabbit
+    depends_on:
+      - rabbit
+      - web
